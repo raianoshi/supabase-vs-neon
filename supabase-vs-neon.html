@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Supabase vs Neon — The Deep Dive</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --supa: #3ecf8e;
+      --supa-dark: #1a9e65;
+      --neon: #00c9ff;
+      --neon-dark: #007bff;
+      --bg: #0b0e14;
+      --surface: #12161f;
+      --surface2: #1a1f2e;
+      --border: #232840;
+      --text: #e8eaf2;
+      --muted: #7a849e;
+      --accent: #f5c842;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 15px;
+      line-height: 1.7;
+      overflow-x: hidden;
+    }
+
+    /* ───── GRAIN OVERLAY ───── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0.5;
+    }
+
+    /* ───── HERO ───── */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 4rem 2rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-bg {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+    }
+
+    .hero-bg::before {
+      content: '';
+      position: absolute;
+      top: -20%;
+      left: -10%;
+      width: 55%;
+      height: 80%;
+      background: radial-gradient(ellipse, rgba(62,207,142,0.13) 0%, transparent 70%);
+      animation: pulse-l 8s ease-in-out infinite alternate;
+    }
+
+    .hero-bg::after {
+      content: '';
+      position: absolute;
+      top: -20%;
+      right: -10%;
+      width: 55%;
+      height: 80%;
+      background: radial-gradient(ellipse, rgba(0,201,255,0.12) 0%, transparent 70%);
+      animation: pulse-r 8s ease-in-out infinite alternate;
+    }
+
+    @keyframes pulse-l { from { transform: translateY(0) scale(1); } to { transform: translateY(5%) scale(1.05); } }
+    @keyframes pulse-r { from { transform: translateY(5%) scale(1.05); } to { transform: translateY(0) scale(1); } }
+
+    .hero-content { position: relative; z-index: 1; }
+
+    .badge {
+      display: inline-block;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--accent);
+      border: 1px solid rgba(245,200,66,0.3);
+      padding: 6px 14px;
+      border-radius: 100px;
+      margin-bottom: 2rem;
+      animation: fadeUp 0.8s ease both;
+    }
+
+    .hero h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(3rem, 8vw, 7rem);
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -0.03em;
+      margin-bottom: 1.5rem;
+      animation: fadeUp 0.8s 0.1s ease both;
+    }
+
+    .hero h1 .vs {
+      font-family: 'Instrument Serif', serif;
+      font-style: italic;
+      font-size: 0.6em;
+      color: var(--muted);
+      display: block;
+      margin: 0.2em 0;
+    }
+
+    .supa-word { color: var(--supa); }
+    .neon-word { color: var(--neon); }
+
+    .hero p {
+      font-family: 'Instrument Serif', serif;
+      font-style: italic;
+      font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+      color: var(--muted);
+      max-width: 600px;
+      margin: 0 auto 3rem;
+      animation: fadeUp 0.8s 0.2s ease both;
+    }
+
+    .hero-scroll {
+      font-size: 11px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+      animation: fadeUp 0.8s 0.4s ease both, bounce 2s 1.2s ease-in-out infinite;
+    }
+
+    @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(6px); } }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ───── LAYOUT ───── */
+    .container { max-width: 980px; margin: 0 auto; padding: 0 2rem; }
+    .section { padding: 6rem 0; }
+    .section + .section { border-top: 1px solid var(--border); }
+
+    .section-label {
+      font-size: 11px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 1rem;
+    }
+
+    .section-title {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+      font-weight: 700;
+      line-height: 1.15;
+      margin-bottom: 1.5rem;
+      letter-spacing: -0.02em;
+    }
+
+    .section-intro {
+      font-family: 'Instrument Serif', serif;
+      font-size: 1.2rem;
+      color: var(--muted);
+      max-width: 680px;
+      margin-bottom: 3rem;
+      line-height: 1.8;
+    }
+
+    /* ───── ANALOGY CARDS ───── */
+    .analogy-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 680px) { .analogy-grid { grid-template-columns: 1fr; } }
+
+    .analogy-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.25s ease, border-color 0.25s ease;
+    }
+
+    .analogy-card:hover { transform: translateY(-4px); }
+
+    .analogy-card.supa { border-top: 3px solid var(--supa); }
+    .analogy-card.neon { border-top: 3px solid var(--neon); }
+
+    .analogy-card::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+
+    .analogy-card.supa::after { background: radial-gradient(ellipse at top, rgba(62,207,142,0.06), transparent 70%); }
+    .analogy-card.neon::after { background: radial-gradient(ellipse at top, rgba(0,201,255,0.06), transparent 70%); }
+    .analogy-card:hover::after { opacity: 1; }
+
+    .card-icon { font-size: 2.5rem; margin-bottom: 1rem; }
+
+    .card-tag {
+      display: inline-block;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 6px;
+      margin-bottom: 1rem;
+    }
+
+    .supa .card-tag { background: rgba(62,207,142,0.15); color: var(--supa); }
+    .neon .card-tag { background: rgba(0,201,255,0.15); color: var(--neon); }
+
+    .analogy-card h3 {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+    }
+
+    .analogy-card p { color: var(--muted); font-size: 0.9rem; line-height: 1.7; }
+
+    /* ───── FEATURE BREAKDOWN ───── */
+    .feature-table {
+      width: 100%;
+      border-collapse: collapse;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .feature-table thead tr {
+      background: var(--surface2);
+    }
+
+    .feature-table thead th {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      padding: 1.1rem 1.5rem;
+      text-align: left;
+      font-size: 0.85rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .feature-table thead th:nth-child(2) { color: var(--supa); }
+    .feature-table thead th:nth-child(3) { color: var(--neon); }
+
+    .feature-table tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+    }
+
+    .feature-table tbody tr:last-child { border-bottom: none; }
+    .feature-table tbody tr:hover { background: var(--surface2); }
+
+    .feature-table tbody td {
+      padding: 1rem 1.5rem;
+      vertical-align: top;
+      font-size: 0.88rem;
+      color: var(--muted);
+    }
+
+    .feature-table tbody td:first-child {
+      font-family: 'Syne', sans-serif;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+    }
+
+    .pill {
+      display: inline-block;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 5px;
+      margin-bottom: 4px;
+    }
+
+    .pill.yes { background: rgba(62,207,142,0.15); color: var(--supa); }
+    .pill.no { background: rgba(255,80,80,0.12); color: #ff7070; }
+    .pill.partial { background: rgba(245,200,66,0.15); color: var(--accent); }
+    .pill.blue { background: rgba(0,201,255,0.15); color: var(--neon); }
+
+    /* ───── DEEP DIVE BLOCKS ───── */
+    .deep-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+    }
+
+    @media (max-width: 720px) { .deep-grid { grid-template-columns: 1fr; } }
+
+    .deep-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2.5rem;
+    }
+
+    .deep-card h3 {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .deep-card p { color: var(--muted); font-size: 0.88rem; line-height: 1.8; margin-bottom: 0.8rem; }
+    .deep-card p:last-child { margin-bottom: 0; }
+
+    .deep-card .dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    }
+
+    .dot-supa { background: var(--supa); box-shadow: 0 0 8px var(--supa); }
+    .dot-neon { background: var(--neon); box-shadow: 0 0 8px var(--neon); }
+
+    /* ───── CODE BLOCK ───── */
+    .code-block {
+      background: #090c12;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      margin: 1.5rem 0;
+    }
+
+    .code-header {
+      background: var(--surface2);
+      padding: 0.6rem 1.2rem;
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .code-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+    pre {
+      padding: 1.5rem;
+      overflow-x: auto;
+      font-size: 0.82rem;
+      line-height: 1.75;
+      color: #a8b4cc;
+    }
+
+    .hl-key { color: #7c9fff; }
+    .hl-str { color: #98e87a; }
+    .hl-cmt { color: #4a5570; font-style: italic; }
+    .hl-fn { color: var(--neon); }
+    .hl-supa { color: var(--supa); }
+
+    /* ───── DECISION MATRIX ───── */
+    .decision-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 680px) { .decision-grid { grid-template-columns: 1fr; } }
+
+    .decision-card {
+      border-radius: 16px;
+      padding: 2rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .decision-card.pick-supa {
+      background: linear-gradient(135deg, rgba(62,207,142,0.1), rgba(62,207,142,0.04));
+      border: 1px solid rgba(62,207,142,0.25);
+    }
+
+    .decision-card.pick-neon {
+      background: linear-gradient(135deg, rgba(0,201,255,0.1), rgba(0,201,255,0.04));
+      border: 1px solid rgba(0,201,255,0.25);
+    }
+
+    .decision-card h3 {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.2rem;
+      font-weight: 800;
+      margin-bottom: 1.2rem;
+    }
+
+    .pick-supa h3 { color: var(--supa); }
+    .pick-neon h3 { color: var(--neon); }
+
+    .check-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .check-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.7rem;
+      font-size: 0.88rem;
+      color: var(--muted);
+    }
+
+    .check-list li::before {
+      content: '→';
+      flex-shrink: 0;
+      margin-top: 0.05em;
+    }
+
+    .pick-supa .check-list li::before { color: var(--supa); }
+    .pick-neon .check-list li::before { color: var(--neon); }
+
+    /* ───── GLOSSARY ───── */
+    .glossary {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 1rem;
+    }
+
+    .glossary-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.2rem 1.4rem;
+    }
+
+    .glossary-item .term {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: var(--text);
+      margin-bottom: 0.4rem;
+    }
+
+    .glossary-item .def {
+      font-size: 0.82rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    /* ───── FOOTER ───── */
+    .footer {
+      padding: 4rem 2rem;
+      border-top: 1px solid var(--border);
+      text-align: center;
+    }
+
+    .footer p {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    /* ───── NAV ───── */
+    .nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 2rem;
+      backdrop-filter: blur(12px);
+      background: rgba(11,14,20,0.8);
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .nav a {
+      font-size: 11px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .nav a:hover { color: var(--text); }
+
+    @media (max-width: 480px) {
+      .nav { gap: 1rem; }
+      .nav a { font-size: 10px; }
+    }
+
+    /* ───── TIMELINE ───── */
+    .timeline { position: relative; padding-left: 2rem; }
+
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 8px;
+      bottom: 8px;
+      width: 2px;
+      background: linear-gradient(to bottom, var(--supa), var(--neon));
+    }
+
+    .timeline-item {
+      position: relative;
+      margin-bottom: 2rem;
+      padding-left: 1rem;
+    }
+
+    .timeline-item::before {
+      content: '';
+      position: absolute;
+      left: -1.6rem;
+      top: 0.4rem;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 10px var(--accent);
+    }
+
+    .timeline-item h4 {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 0.95rem;
+      margin-bottom: 0.4rem;
+    }
+
+    .timeline-item p { color: var(--muted); font-size: 0.85rem; }
+
+    /* scroll reveal */
+    .reveal {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .reveal-delay-1 { transition-delay: 0.1s; }
+    .reveal-delay-2 { transition-delay: 0.2s; }
+    .reveal-delay-3 { transition-delay: 0.3s; }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="#what-are-they">Intro</a>
+  <a href="#features">Features</a>
+  <a href="#deep-dive">Deep Dive</a>
+  <a href="#pricing">Pricing</a>
+  <a href="#decide">Choose</a>
+  <a href="#glossary">Glossary</a>
+</nav>
+
+<!-- ───── HERO ───── -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-content">
+    <div class="badge">☁ Database Showdown</div>
+    <h1>
+      <span class="supa-word">Supabase</span>
+      <span class="vs">vs</span>
+      <span class="neon-word">Neon</span>
+    </h1>
+    <p>Two modern Postgres platforms, two very different ideas about what a database should be. Let's break it down — simply.</p>
+    <div class="hero-scroll">↓ scroll to explore</div>
+  </div>
+</section>
+
+<!-- ───── WHAT ARE THEY ───── -->
+<section class="section" id="what-are-they">
+  <div class="container">
+    <div class="section-label">The Big Picture</div>
+    <h2 class="section-title reveal">Start here: what even <em>are</em> these things?</h2>
+    <p class="section-intro reveal reveal-delay-1">
+      Both are cloud-hosted Postgres databases. If you've heard of PostgreSQL but don't want to manage your own server, these tools do that work for you — and then some.
+      The key difference is in <em>how much more</em> they offer beyond the database itself.
+    </p>
+
+    <div class="analogy-grid">
+      <div class="analogy-card supa reveal reveal-delay-1">
+        <div class="card-icon">🏗️</div>
+        <div class="card-tag">Supabase</div>
+        <h3>The Full Backend Platform</h3>
+        <p>Supabase is like a Swiss Army knife for backend developers. Yes, it has Postgres at its core — but it also bundles authentication, file storage, real-time subscriptions, edge functions, and auto-generated APIs. Think of it as "Firebase, but with real SQL."</p>
+      </div>
+      <div class="analogy-card neon reveal reveal-delay-2">
+        <div class="card-icon">⚡</div>
+        <div class="card-tag">Neon</div>
+        <h3>The Serverless Postgres Specialist</h3>
+        <p>Neon does one thing and does it exceptionally well: serverless Postgres. It separates compute from storage, meaning your database can scale to zero and spin up in milliseconds. If Supabase is a kitchen, Neon is a precision chef's knife.</p>
+      </div>
+    </div>
+
+    <div style="margin-top: 3rem;" class="reveal">
+      <div class="section-label">Simple Analogy</div>
+      <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 2rem; margin-top: 0.5rem;">
+        <p style="font-family: 'Instrument Serif', serif; font-size: 1.15rem; color: var(--text); line-height: 1.9;">
+          Imagine you're opening a café. <span style="color:var(--supa)"><strong>Supabase</strong></span> is like renting a fully equipped commercial kitchen — it comes with the stove, the espresso machine, the fridges, and the POS system. <span style="color:var(--neon)"><strong>Neon</strong></span> is like renting just an extraordinary, perfectly calibrated stove — nothing extra, but the stove is truly best-in-class and charges you only while it's actually on.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───── FEATURE TABLE ───── -->
+<section class="section" id="features">
+  <div class="container">
+    <div class="section-label">Feature Comparison</div>
+    <h2 class="section-title reveal">Side by side</h2>
+    <p class="section-intro reveal reveal-delay-1">A breakdown of what each platform offers out of the box.</p>
+
+    <div style="overflow-x: auto;" class="reveal reveal-delay-2">
+      <table class="feature-table">
+        <thead>
+          <tr>
+            <th style="width:26%">Feature</th>
+            <th>🟢 Supabase</th>
+            <th>🔵 Neon</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Core Database</td>
+            <td><span class="pill yes">PostgreSQL</span><br/>Managed Postgres, full SQL support</td>
+            <td><span class="pill blue">PostgreSQL</span><br/>Serverless Postgres, storage-compute split</td>
+          </tr>
+          <tr>
+            <td>Scale to Zero</td>
+            <td><span class="pill no">No</span><br/>Always-on compute (even on free tier)</td>
+            <td><span class="pill yes">Yes</span><br/>Scales to zero when idle; cold starts ~500ms</td>
+          </tr>
+          <tr>
+            <td>Branching</td>
+            <td><span class="pill no">No</span></td>
+            <td><span class="pill yes">Yes</span><br/>Git-like DB branches for dev/staging/preview</td>
+          </tr>
+          <tr>
+            <td>Authentication</td>
+            <td><span class="pill yes">Built-in</span><br/>Email, OAuth, magic links, SSO, MFA</td>
+            <td><span class="pill no">Not included</span><br/>Bring your own (Clerk, Auth.js, etc.)</td>
+          </tr>
+          <tr>
+            <td>File Storage</td>
+            <td><span class="pill yes">Built-in</span><br/>S3-compatible object storage</td>
+            <td><span class="pill no">Not included</span></td>
+          </tr>
+          <tr>
+            <td>Real-time</td>
+            <td><span class="pill yes">Built-in</span><br/>Postgres CDC via WebSockets</td>
+            <td><span class="pill no">Not included</span></td>
+          </tr>
+          <tr>
+            <td>Edge Functions</td>
+            <td><span class="pill yes">Built-in</span><br/>Deno-based serverless functions</td>
+            <td><span class="pill no">Not included</span></td>
+          </tr>
+          <tr>
+            <td>Auto-generated API</td>
+            <td><span class="pill yes">Yes</span><br/>REST (PostgREST) + GraphQL</td>
+            <td><span class="pill no">No</span><br/>Connect directly with your app's ORM/driver</td>
+          </tr>
+          <tr>
+            <td>Point-in-time Recovery</td>
+            <td><span class="pill partial">Paid plans</span></td>
+            <td><span class="pill yes">All plans</span><br/>Thanks to storage layer architecture</td>
+          </tr>
+          <tr>
+            <td>Connection Pooling</td>
+            <td><span class="pill yes">PgBouncer</span></td>
+            <td><span class="pill yes">Built-in</span><br/>Optimized for serverless (HTTP + WebSockets)</td>
+          </tr>
+          <tr>
+            <td>Local Dev</td>
+            <td><span class="pill yes">Supabase CLI</span><br/>Full local stack via Docker</td>
+            <td><span class="pill yes">Neon CLI</span><br/>Lightweight, branch-based local dev</td>
+          </tr>
+          <tr>
+            <td>Postgres Extensions</td>
+            <td><span class="pill yes">Large set</span><br/>pgvector, PostGIS, pg_cron, etc.</td>
+            <td><span class="pill yes">Growing set</span><br/>pgvector, PostGIS, and others</td>
+          </tr>
+          <tr>
+            <td>Dashboard / Studio</td>
+            <td><span class="pill yes">Full Studio</span><br/>Table editor, SQL editor, logs, metrics</td>
+            <td><span class="pill yes">Console</span><br/>Query editor, metrics, branch manager</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ───── DEEP DIVE ───── -->
+<section class="section" id="deep-dive">
+  <div class="container">
+    <div class="section-label">Under the Hood</div>
+    <h2 class="section-title reveal">The technical story</h2>
+    <p class="section-intro reveal reveal-delay-1">Let's go deeper into the architectural differences that actually matter day-to-day.</p>
+
+    <div class="deep-grid">
+      <div class="deep-card reveal reveal-delay-1">
+        <h3><span class="dot dot-neon"></span> Neon's Serverless Architecture</h3>
+        <p>Neon's biggest innovation is separating <strong style="color:var(--text)">compute</strong> (the Postgres engine doing query work) from <strong style="color:var(--text)">storage</strong> (where your actual data lives). These are two independent layers.</p>
+        <p>This means when nothing is querying your database, the compute layer completely turns off — you pay zero. Storage keeps your data safe at rest. When a request comes in, compute spins back up in ~500ms.</p>
+        <p>This also enables Neon's killer feature: <strong style="color:var(--neon)">database branching</strong>. Because storage is a separate, immutable log, Neon can create instant, copy-on-write branches of your entire database — exactly like Git branches for code.</p>
+      </div>
+
+      <div class="deep-card reveal reveal-delay-2">
+        <h3><span class="dot dot-supa"></span> Supabase's Full-Stack Approach</h3>
+        <p>Supabase runs a regular (but managed) Postgres instance alongside a collection of open-source services stitched together: <strong style="color:var(--text)">PostgREST</strong> for your API, <strong style="color:var(--text)">GoTrue</strong> for auth, <strong style="color:var(--text)">Realtime</strong> for WebSockets, and <strong style="color:var(--text)">Storage</strong> for files.</p>
+        <p>This means less architectural decision fatigue — you get a cohesive product where all services talk to each other and share your Postgres schema as the source of truth.</p>
+        <p>The trade-off: the database is always running, so you pay for uptime even when idle. And if you only need the database, you're paying for bundled services you might not use.</p>
+      </div>
+    </div>
+
+    <div style="margin-top: 2rem;" class="reveal">
+      <div class="section-label" style="margin-bottom: 1rem;">What Database Branching Looks Like</div>
+      <div class="code-block">
+        <div class="code-header">
+          <span class="code-dot" style="background:#ff5f57"></span>
+          <span class="code-dot" style="background:#febc2e"></span>
+          <span class="code-dot" style="background:#28c840"></span>
+          <span style="margin-left: 0.5rem;">Neon CLI — branching workflow</span>
+        </div>
+        <pre><span class="hl-cmt"># Create a branch from main for a new feature</span>
+<span class="hl-fn">neonctl</span> branches create <span class="hl-str">--name</span> feature/add-payments <span class="hl-str">--parent</span> main
+
+<span class="hl-cmt"># Each branch has its own connection string</span>
+<span class="hl-fn">neonctl</span> connection-string feature/add-payments
+<span class="hl-cmt"># → postgresql://user@ep-cool-xyz.us-east-2.aws.neon.tech/mydb</span>
+
+<span class="hl-cmt"># Run migrations on your feature branch (main is untouched)</span>
+<span class="hl-fn">npx</span> prisma migrate dev <span class="hl-str">--schema</span> ./prisma/schema.prisma
+
+<span class="hl-cmt"># Open a PR → CI gets its own ephemeral branch automatically</span>
+<span class="hl-cmt"># PR merged → branch deleted. Clean, zero-cost preview environments.</span>
+
+<span class="hl-cmt"># List all branches</span>
+<span class="hl-fn">neonctl</span> branches list
+<span class="hl-cmt"># ┌─────────────────────┬──────────┬──────────────────────┐</span>
+<span class="hl-cmt"># │ Name                │ ID       │ Parent               │</span>
+<span class="hl-cmt"># │ main                │ br-abc…  │ —                    │</span>
+<span class="hl-cmt"># │ feature/add-payments│ br-xyz…  │ main                 │</span>
+<span class="hl-cmt"># └─────────────────────┴──────────┴──────────────────────┘</span></pre>
+      </div>
+    </div>
+
+    <div style="margin-top: 2rem;" class="reveal">
+      <div class="section-label" style="margin-bottom: 1rem;">Supabase Auth in Action</div>
+      <div class="code-block">
+        <div class="code-header">
+          <span class="code-dot" style="background:#ff5f57"></span>
+          <span class="code-dot" style="background:#febc2e"></span>
+          <span class="code-dot" style="background:#28c840"></span>
+          <span style="margin-left: 0.5rem;">JavaScript — full auth flow (no extra service needed)</span>
+        </div>
+        <pre><span class="hl-key">import</span> { createClient } <span class="hl-key">from</span> <span class="hl-str">'@supabase/supabase-js'</span>
+
+<span class="hl-key">const</span> supabase = <span class="hl-fn">createClient</span>(<span class="hl-str">'YOUR_URL'</span>, <span class="hl-str">'YOUR_ANON_KEY'</span>)
+
+<span class="hl-cmt">// Sign up a new user</span>
+<span class="hl-key">const</span> { data, error } = <span class="hl-key">await</span> supabase.auth.<span class="hl-fn">signUp</span>({
+  email: <span class="hl-str">'user@example.com'</span>,
+  password: <span class="hl-str">'super-secure-password'</span>
+})
+
+<span class="hl-cmt">// Query database as that user (Row Level Security enforces access)</span>
+<span class="hl-key">const</span> { data: posts } = <span class="hl-key">await</span> supabase
+  .<span class="hl-fn">from</span>(<span class="hl-str">'posts'</span>)
+  .<span class="hl-fn">select</span>(<span class="hl-str">'*'</span>)
+  .<span class="hl-fn">eq</span>(<span class="hl-str">'author_id'</span>, data.user.id) <span class="hl-cmt">// auto-secured by RLS policy</span>
+
+<span class="hl-cmt">// Subscribe to real-time updates</span>
+supabase
+  .<span class="hl-fn">channel</span>(<span class="hl-str">'posts'</span>)
+  .<span class="hl-fn">on</span>(<span class="hl-str">'postgres_changes'</span>, { event: <span class="hl-str">'*'</span>, schema: <span class="hl-str">'public'</span> }, <span class="hl-fn">handleChange</span>)
+  .<span class="hl-fn">subscribe</span>()</pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───── PRICING ───── -->
+<section class="section" id="pricing">
+  <div class="container">
+    <div class="section-label">Pricing Philosophy</div>
+    <h2 class="section-title reveal">How they charge you</h2>
+    <p class="section-intro reveal reveal-delay-1">
+      Both have free tiers, but the underlying billing model is fundamentally different — and it matters for your budget.
+    </p>
+
+    <div class="deep-grid">
+      <div class="deep-card reveal reveal-delay-1">
+        <h3><span class="dot dot-supa"></span> Supabase: Project-based</h3>
+        <p><strong style="color:var(--text)">Free tier:</strong> 2 free projects, 500MB database, 1GB file storage, 50,000 monthly active users (MAUs) for auth. Projects pause after 1 week of inactivity on free plan.</p>
+        <p><strong style="color:var(--text)">Pro plan:</strong> $25/month per project. Includes 8GB database, 100GB storage, no pausing. Additional usage is charged on top.</p>
+        <p>You pay for the <em>project</em> as a unit — meaning you get all the bundled services (auth, storage, functions) as part of that flat fee. Good if you use them. Less efficient if you don't.</p>
+      </div>
+
+      <div class="deep-card reveal reveal-delay-2">
+        <h3><span class="dot dot-neon"></span> Neon: Consumption-based</h3>
+        <p><strong style="color:var(--text)">Free tier:</strong> 1 project, 10 branches, 0.5 GB storage, 191.9 compute hours/month (plenty for a hobby project that sleeps). No pausing — it auto-scales to zero.</p>
+        <p><strong style="color:var(--text)">Launch plan:</strong> $19/month includes a base allowance; extra usage billed per compute-hour (~$0.16) and per GB storage.</p>
+        <p>You pay for what you actually <em>use</em>. Idle = $0 compute. Active = charged by the second. This can be dramatically cheaper for low-traffic apps, but less predictable for busy ones.</p>
+      </div>
+    </div>
+
+    <div style="margin-top: 2rem; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 2rem;" class="reveal">
+      <div class="timeline">
+        <div class="timeline-item">
+          <h4>Side project / weekend app</h4>
+          <p>Neon free tier wins — scales to zero, no pausing, no surprise fees. Supabase free tier pauses inactive projects after 7 days.</p>
+        </div>
+        <div class="timeline-item">
+          <h4>Startup with real users</h4>
+          <p>Supabase Pro ($25/mo) is a predictable flat fee that includes everything. Neon's consumption billing can be cheaper for low-traffic apps but pricier when traffic spikes.</p>
+        </div>
+        <div class="timeline-item">
+          <h4>High-scale production app</h4>
+          <p>Both offer enterprise plans. Neon shines for bursty, unpredictable traffic. Supabase is better if you're using auth, storage, and real-time heavily — bundled at that scale.</p>
+        </div>
+        <div class="timeline-item">
+          <h4>CI/CD with preview environments</h4>
+          <p>Neon's branching model is a game-changer here — create/destroy ephemeral DB per PR with zero cost overhead. Supabase doesn't have a native equivalent.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───── DECIDE ───── -->
+<section class="section" id="decide">
+  <div class="container">
+    <div class="section-label">The Verdict</div>
+    <h2 class="section-title reveal">Which one should you pick?</h2>
+    <p class="section-intro reveal reveal-delay-1">
+      There's no universal winner. The right choice depends entirely on what you're building.
+    </p>
+
+    <div class="decision-grid">
+      <div class="decision-card pick-supa reveal reveal-delay-1">
+        <h3>✅ Pick Supabase if…</h3>
+        <ul class="check-list">
+          <li>You want auth, storage, and real-time without configuring separate services</li>
+          <li>You're building a full-stack app and want everything in one dashboard</li>
+          <li>You like auto-generated REST/GraphQL APIs from your schema</li>
+          <li>You come from Firebase and want a SQL-powered replacement</li>
+          <li>Your team prefers a "batteries included" developer experience</li>
+          <li>You want Row Level Security tightly integrated with your auth layer</li>
+          <li>You're not deploying many microservices or branching environments</li>
+        </ul>
+      </div>
+      <div class="decision-card pick-neon reveal reveal-delay-2">
+        <h3>✅ Pick Neon if…</h3>
+        <ul class="check-list">
+          <li>You just need excellent serverless Postgres — no extras</li>
+          <li>You want Git-like database branching for CI/CD workflows</li>
+          <li>You're building on a serverless stack (Vercel, Cloudflare Workers)</li>
+          <li>Scale-to-zero matters for cost on low-traffic or hobby apps</li>
+          <li>You already handle auth with Clerk, Auth.js, or similar</li>
+          <li>You want the absolute fastest cold-start Postgres available</li>
+          <li>You work with many preview environments per PR</li>
+        </ul>
+      </div>
+    </div>
+
+    <div style="margin-top: 2rem; background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 12px; padding: 1.5rem 2rem;" class="reveal">
+      <p style="font-family: 'Instrument Serif', serif; font-size: 1.1rem; color: var(--text);">
+        💡 <strong>Can't decide?</strong> If you're starting a new project and unsure, try Supabase first — it's the most forgiving option with everything in one place. If you later find you only use the database and wish it were cheaper/faster, migrating to Neon is straightforward since both are plain Postgres under the hood.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ───── GLOSSARY ───── -->
+<section class="section" id="glossary">
+  <div class="container">
+    <div class="section-label">Beginner Glossary</div>
+    <h2 class="section-title reveal">Terms you might not know</h2>
+    <p class="section-intro reveal reveal-delay-1">Quick definitions for the jargon used on this page.</p>
+
+    <div class="glossary reveal reveal-delay-2">
+      <div class="glossary-item">
+        <div class="term">PostgreSQL (Postgres)</div>
+        <div class="def">A powerful, open-source relational database. Both Supabase and Neon use it as their core database engine.</div>
+      </div>
+      <div class="glossary-item">
+        <div class="term">Serverless</div>
+        <div class="def">A deployment model where you don't manage servers. The provider auto-scales (and auto-sleeps) your infrastructure.</div>
+      </div>
+      <div class="glossary-item">
+        <div class="term">Scale to Zero</div>
+        <div class="def">When idle, the service uses no compute resources (and costs nothing). It "wakes up" on the next request.</div>
+      </div>
+      <div class="glossary-item">
+        <div class="term">Database Branching</div>
+        <div class="def">Creating isolated copies of your database (like Git branches) for testing, staging, or each developer to work on independently.</div>
+      </div>
+      <div class="glossary-item">
+        <div class="term">Connection Pooling</div>
+        <div class="def">Reusing database connections so your app doesn't open thousands of new ones, which would overwhelm the database.</div>
+      </div>
+      <div class="glossary-item">
+        <div class="term">Row Level Security (RLS)</div>
+        <div class="def">A Postgres feature letting you write rules inside the database about which users can see which rows. Supabase makes this central to its auth model.</div>
+      </div>
+      <div class="glossary-item">
+        <div class="term">ORM</div>
+        <div class="def">Object-Relational Mapper — a library (like Prisma, Drizzle) that lets you write database queries in your app's language instead of raw SQL.</div>
+      </div>
+      <div class="glossary-item">
+        <div class="term">CDC (Change Data Capture)</div>
+        <div class="def">Technology that listens to changes in your database and streams them elsewhere — how Supabase's real-time feature works.</div>
+      </div>
+      <div class="glossary-item">
+        <div class="term">Edge Functions</div>
+        <div class="def">Serverless functions that run close to the user geographically, reducing latency. Supabase includes these; with Neon you'd use a separate service.</div>
+      </div>
+      <div class="glossary-item">
+        <div class="term">pgvector</div>
+        <div class="def">A Postgres extension for storing and querying vector embeddings — essential for AI/ML features like semantic search. Both platforms support it.</div>
+      </div>
+      <div class="glossary-item">
+        <div class="term">Cold Start</div>
+        <div class="def">The brief delay when a scaled-to-zero service wakes up. Neon's is ~500ms, which is acceptable for most apps.</div>
+      </div>
+      <div class="glossary-item">
+        <div class="term">PostgREST</div>
+        <div class="def">Open-source tool that automatically turns a Postgres schema into a REST API. Supabase uses it under the hood.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <p>Built for clarity, not for clicks. Both platforms are excellent — read the docs and try the free tiers before committing.</p>
+  <p style="margin-top:0.5rem;">Supabase → <span style="color:var(--supa)">supabase.com</span> &nbsp;·&nbsp; Neon → <span style="color:var(--neon)">neon.tech</span></p>
+</footer>
+
+<script>
+  // Scroll reveal
+  const reveals = document.querySelectorAll('.reveal');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.1 });
+  reveals.forEach(el => observer.observe(el));
+</script>
+</body>
+</html>

@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Team Git & GitHub Workflow Guide for Next.js Projects</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+        margin: 0;
+        padding: 0;
+        background: #f7f7f7;
+        color: #333;
+    }
+    header {
+        background: #111827;
+        color: #fff;
+        padding: 20px 40px;
+    }
+    h1, h2, h3 {
+        margin-top: 30px;
+        color: #111827;
+    }
+    main {
+        max-width: 900px;
+        margin: auto;
+        background: #fff;
+        padding: 40px;
+    }
+    code {
+        background: #eee;
+        padding: 3px 6px;
+        border-radius: 4px;
+        font-size: 0.95em;
+    }
+    pre {
+        background: #eee;
+        padding: 12px;
+        border-radius: 6px;
+        overflow-x: auto;
+    }
+    .section {
+        margin-bottom: 50px;
+    }
+    .note {
+        background: #e0f2fe;
+        padding: 10px 15px;
+        border-left: 4px solid #0284c7;
+        margin: 20px 0;
+    }
+</style>
+</head>
+<body>
+
+<header>
+    <h1>Team Git & GitHub Workflow Guide<br>for First-Time Next.js Collaboration</h1>
+</header>
+
+<main>
+
+<section class="section">
+    <h2>1. Overview</h2>
+    <p>
+        This guide explains the standard Git and GitHub workflow for a team collaborating on a 
+        <strong>Next.js project</strong> for the first time. It covers repository setup, branch protection, 
+        feature branching, pull requests, and the commands your team will use daily.
+    </p>
+</section>
+
+<section class="section">
+    <h2>2. Initial Project Setup (One Person Only)</h2>
+
+    <h3>2.1 Create the GitHub Repository</h3>
+    <p>
+        One team member creates a new GitHub repository. If the Next.js project already exists locally, 
+        do <strong>not</strong> initialize the repo with a README or .gitignore — GitHub will warn about conflicts.
+    </p>
+
+    <h3>2.2 Create the Next.js Project Locally</h3>
+    <pre><code>npx create-next-app@latest my-project
+cd my-project</code></pre>
+
+    <h3>2.3 Initialize Git</h3>
+    <pre><code>git init
+git add .
+git commit -m "Initial Next.js project setup"</code></pre>
+
+    <h3>2.4 Connect Local Repo to GitHub</h3>
+    <pre><code>git remote add origin https://github.com/&lt;org&gt;/&lt;repo&gt;.git
+git branch -M main
+git push -u origin main</code></pre>
+</section>
+
+<section class="section">
+    <h2>3. Protecting the <code>main</code> Branch</h2>
+    <p>
+        Protecting the <code>main</code> branch ensures that no one accidentally breaks the production-ready code.
+    </p>
+
+    <h3>3.1 Recommended Protection Rules</h3>
+    <ul>
+        <li>Require pull requests before merging</li>
+        <li>Require at least one reviewer</li>
+        <li>Disallow direct pushes to <code>main</code></li>
+        <li>Require branches to be up-to-date before merging</li>
+    </ul>
+
+    <p>
+        These settings are found under:<br>
+        <strong>GitHub → Repository → Settings → Branches → Add Rule</strong>
+    </p>
+</section>
+
+<section class="section">
+    <h2>4. Team Setup: Cloning the Repository</h2>
+    <p>Each team member clones the repository and installs dependencies:</p>
+    <pre><code>git clone https://github.com/&lt;org&gt;/&lt;repo&gt;.git
+cd repo
+npm install</code></pre>
+</section>
+
+<section class="section">
+    <h2>5. Standard Team Workflow: Feature Branching</h2>
+    <p>
+        Every new task or feature should be developed in its own branch. This keeps work isolated and 
+        makes reviewing changes easier.
+    </p>
+
+    <h3>5.1 Create a New Branch</h3>
+    <pre><code>git checkout -b feature/add-login-page</code></pre>
+
+    <h3>5.2 Work on the Feature</h3>
+    <p>Run the development server:</p>
+    <pre><code>npm run dev</code></pre>
+
+    <h3>5.3 Stage and Commit Changes</h3>
+    <pre><code>git add .
+git commit -m "Add login page UI"</code></pre>
+
+    <h3>5.4 Push the Branch to GitHub</h3>
+    <pre><code>git push -u origin feature/add-login-page</code></pre>
+</section>
+
+<section class="section">
+    <h2>6. Pull Requests (PRs)</h2>
+    <p>
+        Pull requests allow the team to review code before merging it into <code>main</code>.
+    </p>
+
+    <h3>6.1 Steps to Create a PR</h3>
+    <ol>
+        <li>Go to the repository on GitHub</li>
+        <li>Click <strong>Compare &amp; Pull Request</strong></li>
+        <li>Ensure the base branch is <code>main</code></li>
+        <li>Add a clear title and description</li>
+        <li>Request reviewers</li>
+        <li>Address feedback and update the branch if needed</li>
+        <li>Merge when approved</li>
+    </ol>
+
+    <div class="note">
+        After merging, delete the feature branch on GitHub to keep the repo clean.
+    </div>
+</section>
+
+<section class="section">
+    <h2>7. Keeping Your Local Repo Updated</h2>
+
+    <h3>7.1 Update <code>main</code></h3>
+    <pre><code>git checkout main
+git pull origin main</code></pre>
+
+    <h3>7.2 Sync a Feature Branch with Latest <code>main</code></h3>
+    <pre><code>git checkout feature/add-login-page
+git pull origin main</code></pre>
+
+    <p>If merge conflicts occur, resolve them manually, then:</p>
+    <pre><code>git add .
+git commit</code></pre>
+</section>
+
+<section class="section">
+    <h2>8. Cleaning Up Local Branches</h2>
+    <pre><code>git branch -d feature/add-login-page
+git fetch --prune</code></pre>
+</section>
+
+<section class="section">
+    <h2>9. Common Git Commands Reference</h2>
+
+    <h3>Status</h3>
+    <pre><code>git status</code></pre>
+
+    <h3>List Branches</h3>
+    <pre><code>git branch</code></pre>
+
+    <h3>Switch Branch</h3>
+    <pre><code>git checkout &lt;branch&gt;</code></pre>
+
+    <h3>Create + Switch</h3>
+    <pre><code>git checkout -b &lt;branch&gt;</code></pre>
+
+    <h3>Stage All Changes</h3>
+    <pre><code>git add .</code></pre>
+
+    <h3>Commit</h3>
+    <pre><code>git commit -m "Message"</code></pre>
+
+    <h3>Push</h3>
+    <pre><code>git push</code></pre>
+
+    <h3>Pull</h3>
+    <pre><code>git pull</code></pre>
+</section>
+
+<section class="section">
+    <h2>10. Recommended Team Conventions</h2>
+
+    <h3>Branch Naming</h3>
+    <ul>
+        <li><code>feature/&lt;name&gt;</code></li>
+        <li><code>bugfix/&lt;name&gt;</code></li>
+        <li><code>hotfix/&lt;name&gt;</code></li>
+        <li><code>chore/&lt;name&gt;</code></li>
+    </ul>
+
+    <h3>Commit Message Style</h3>
+    <ul>
+        <li>Use clear, present-tense descriptions</li>
+        <li>Examples:
+            <ul>
+                <li><code>Add login form validation</code></li>
+                <li><code>Fix navbar layout</code></li>
+            </ul>
+        </li>
+    </ul>
+
+    <h3>Pull Request Best Practices</h3>
+    <ul>
+        <li>Keep PRs small and focused</li>
+        <li>Include screenshots for UI changes</li>
+        <li>Link related issues</li>
+    </ul>
+
+    <h3>Environment Variables</h3>
+    <p>
+        Never commit <code>.env</code> files. Use <code>.env.local</code> and ensure <code>.env*</code> is in 
+        <code>.gitignore</code>.
+    </p>
+</section>
+
+<section class="section">
+    <h2>11. Summary</h2>
+    <p>
+        By following this workflow, your team will maintain a clean, stable codebase while collaborating 
+        efficiently on your Next.js project. The combination of protected branches, feature branching, 
+        and pull requests ensures quality and consistency across the entire project.
+    </p>
+</section>
+
+</main>
+
+</body>
+</html>

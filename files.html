@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Next.js App Structure Explained</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      margin: 0;
+      background: #0b0f19;
+      color: #e8eefc;
+    }
+    header {
+      padding: 40px;
+      background: #111a2e;
+      border-bottom: 1px solid #223;
+    }
+    h1 {
+      margin: 0;
+      font-size: 28px;
+    }
+    h2 {
+      margin-top: 40px;
+      color: #9cc2ff;
+    }
+    pre {
+      background: #0f172a;
+      padding: 16px;
+      border-radius: 8px;
+      overflow-x: auto;
+      border: 1px solid #223;
+    }
+    .container {
+      max-width: 1000px;
+      margin: auto;
+      padding: 20px;
+    }
+    .card {
+      background: #111a2e;
+      padding: 16px;
+      border-radius: 10px;
+      margin: 16px 0;
+      border: 1px solid #223;
+    }
+    code {
+      color: #9cc2ff;
+    }
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      background: #223;
+      border-radius: 6px;
+      font-size: 12px;
+      margin-left: 6px;
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <h1>Next.js App Structure</h1>
+  <p>A real-world breakdown of a production drawing + social + learning app</p>
+</header>
+
+<div class="container">
+
+<h2>📁 Full Project File Structure</h2>
+
+<pre>
+/
+├── app/
+│   ├── layout.tsx
+│   ├── (auth)/
+│   │   ├── login/page.tsx
+│   │   ├── register/page.tsx
+│   │   ├── verify-email/page.tsx
+│   │   └── reset-password/page.tsx
+│   │
+│   ├── (app)/
+│   │   ├── dashboard/page.tsx
+│   │   ├── practice/page.tsx
+│   │   ├── exercises/page.tsx
+│   │   ├── exercise/[id]/page.tsx
+│   │   ├── profile/[username]/page.tsx
+│   │   └── settings/page.tsx
+│   │
+│   ├── (social)/
+│   │   ├── feed/page.tsx
+│   │   ├── post/[id]/page.tsx
+│   │   ├── followers/page.tsx
+│   │   └── following/page.tsx
+│   │
+│   ├── (billing)/
+│   │   ├── upgrade/page.tsx
+│   │   ├── success/page.tsx
+│   │   └── cancel/page.tsx
+│   │
+│   └── api/
+│       ├── auth/
+│       ├── stripe/
+│       ├── webhooks/stripe/route.ts
+│       ├── exercises/
+│       ├── practice/
+│       └── social/
+│
+├── components/
+│   ├── ui/
+│   │   ├── Button.tsx
+│   │   ├── Modal.tsx
+│   │   └── Avatar.tsx
+│   │
+│   ├── practice/
+│   │   ├── Timer.tsx
+│   │   └── ExercisePlayer.tsx
+│   │
+│   ├── feed/
+│   │   └── PostCard.tsx
+│   │
+│   └── profile/
+│       └── ProfileHeader.tsx
+│
+├── lib/
+│   ├── db.ts
+│   ├── auth.ts
+│   └── stripe.ts
+│
+├── services/
+│   ├── practice.service.ts
+│   ├── social.service.ts
+│   └── billing.service.ts
+│
+└── middleware.ts
+</pre>
+
+<h2>🧠 What Each Folder Means</h2>
+
+<div class="card">
+  <h3>/app <span class="tag">Routing</span></h3>
+  <p>This is your website pages. Every folder = a URL.</p>
+  <p>Example:</p>
+  <pre>/profile/john → app/profile/[username]/page.tsx</pre>
+</div>
+
+<div class="card">
+  <h3>/components <span class="tag">UI</span></h3>
+  <p>Reusable visual parts like buttons, timers, cards.</p>
+
+  <p><b>Example component:</b></p>
+  <pre>
+export function Button({ children }) {
+  return (
+    &lt;button className="px-4 py-2 bg-blue-500 text-white"&gt;
+      {children}
+    &lt;/button&gt;
+  );
+}
+  </pre>
+</div>
+
+<div class="card">
+  <h3>/services <span class="tag">Logic</span></h3>
+  <p>All business rules live here (NOT in UI).</p>
+
+  <p><b>Example:</b></p>
+  <pre>
+export async function startPractice(userId, exerciseId) {
+  return db.practice_sessions.create({
+    user_id: userId,
+    exercise_id: exerciseId,
+    started_at: new Date()
+  });
+}
+  </pre>
+</div>
+
+<div class="card">
+  <h3>/lib <span class="tag">Core tools</span></h3>
+  <p>Database, Stripe, authentication helpers.</p>
+
+  <pre>
+export function requireUser(session) {
+  if (!session) throw new Error("Not authenticated");
+}
+  </pre>
+</div>
+
+<h2>🎯 Mental Model</h2>
+
+<div class="card">
+<p><b>Think of it like this:</b></p>
+<ul>
+  <li><b>/app</b> → pages (what user sees)</li>
+  <li><b>/components</b> → LEGO pieces (UI blocks)</li>
+  <li><b>/services</b> → brain (rules & logic)</li>
+  <li><b>/lib</b> → tools (Stripe, DB, auth)</li>
+</ul>
+</div>
+
+<h2>⚡ Example Flow (Practice Session)</h2>
+
+<div class="card">
+<pre>
+User clicks “Start Exercise”
+  ↓
+app/practice/page.tsx
+  ↓
+calls services/practice.service.ts
+  ↓
+writes to DB (lib/db.ts)
+  ↓
+UI updates via components/Timer.tsx
+</pre>
+</div>
+
+<h2>🚀 Why This Structure Works</h2>
+
+<div class="card">
+<ul>
+  <li>Keeps UI clean and simple</li>
+  <li>All logic is reusable</li>
+  <li>Easy to scale social + payments</li>
+  <li>Prevents messy Next.js spaghetti code</li>
+</ul>
+</div>
+
+</div>
+
+</body>
+</html>
